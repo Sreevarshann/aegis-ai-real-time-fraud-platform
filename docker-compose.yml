@@ -1,0 +1,197 @@
+# AEGIS AI - local stack. Core services fit comfortably in ~4 GB of RAM.
+# Optional profiles:  --profile llm (Ollama)   --profile monitoring (Prometheus + Grafana)
+name: aegis
+
+x-backend: &backend
+  build: ./backend
+  image: aegis-backend:local
+  env_file: .env
+  environment: &backend-env
+    AEGIS_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aegis}:${POSTGRES_PASSWORD:-aegis}@postgres:5432/${POSTGRES_DB:-aegis}
+    AEGIS_REDIS_URL: redis://redis:6379/0
+    AEGIS_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    AEGIS_MLFLOW_TRACKING_URI: http://mlflow:5000
+    AEGIS_MODEL_DIR: /app/artifacts/models
+    AEGIS_CONSUMER_METRICS_URL: http://consumer:9108/metrics
+    AEGIS_OLLAMA_BASE_URL: http://ollama:11434
+    AEGIS_LOG_JSON: "true"
+  volumes:
+    - models:/app/artifacts/models
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aegis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis}
+      POSTGRES_DB: ${POSTGRES_DB:-aegis}
+    ports: ["55432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aegis} -d ${POSTGRES_DB:-aegis}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    ports: ["56379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start
+      - --mode dev-container
+      - --smp 1
+      - --memory 768M
+      - --overprovisioned
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+    ports: ["19092:19092", "9644:9644"]
+    volumes: [redpandadata:/var/lib/redpanda/data]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.1.0
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts --serve-artifacts
+    ports: ["5050:5000"]
+    volumes: [mlflowdata:/mlflow]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+
+  # One-shot: schema migrations + idempotent seed of demo tenants/users/reference data.
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && python -m aegis.seed"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # One-shot: train and register a model unless an active one already exists.
+  trainer:
+    <<: *backend
+    command: ["python", "-m", "aegis.ml.train", "--register", "--skip-if-active"]
+    restart: "no"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mlflow: { condition: service_healthy }
+
+  consumer:
+    <<: *backend
+    command: ["python", "-m", "aegis.streaming.consumer"]
+    ports: ["9108:9108"]  # Prometheus metrics
+    depends_on:
+      trainer: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9108/metrics"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    <<: *backend
+    command: ["uvicorn", "aegis.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+    ports: ["8000:8000"]
+    depends_on:
+      trainer: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # Continuous synthetic traffic at realistic per-customer rates (with injected defects).
+  simulator:
+    <<: *backend
+    command: ["sh", "-c", "python -m aegis.streaming.producer live --rate-multiplier ${AEGIS_SIM_RATE_MULTIPLIER:-1.0}"]
+    depends_on:
+      consumer: { condition: service_healthy }
+
+  # dbt Core: builds analytics models + tests on a schedule and records results.
+  dbt:
+    build: ./dbt
+    image: aegis-dbt:local
+    environment:
+      DBT_HOST: postgres
+      DBT_USER: ${POSTGRES_USER:-aegis}
+      DBT_PASSWORD: ${POSTGRES_PASSWORD:-aegis}
+      DBT_DBNAME: ${POSTGRES_DB:-aegis}
+      DBT_INTERVAL_SECONDS: "120"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: aegis-frontend:local
+    ports: ["3000:80"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # ---------------- optional profiles ----------------
+  ollama:
+    image: ollama/ollama:0.5.4
+    profiles: ["llm"]
+    ports: ["11434:11434"]
+    volumes: [ollamadata:/root/.ollama]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["monitoring"]
+    volumes: ["./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    profiles: ["monitoring"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pgdata:
+  redisdata:
+  redpandadata:
+  mlflowdata:
+  models:
+  ollamadata:
