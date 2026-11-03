@@ -5,30 +5,28 @@
 @layer base {
   html, body, #root { height: 100%; }
   body {
-    @apply bg-ink-950 text-mist-100 font-sans antialiased;
-    background-image:
-      radial-gradient(1200px 600px at 85% -10%, rgba(76, 141, 255, 0.07), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgba(45, 212, 191, 0.05), transparent 60%);
-    background-attachment: fixed;
+    @apply bg-canvas text-fg font-sans antialiased;
     font-feature-settings: "cv11", "ss01";
   }
-  ::selection { background: rgba(76, 141, 255, 0.35); }
-  * { scrollbar-width: thin; scrollbar-color: #25314f transparent; }
+  ::selection { background: rgba(37, 99, 235, 0.18); }
+  * { scrollbar-width: thin; scrollbar-color: #d5dbe6 transparent; }
 }
 
 @layer components {
-  .panel { @apply rounded-xl border border-line bg-ink-900/80 shadow-panel backdrop-blur-sm; }
-  .panel-header { @apply flex items-center justify-between gap-3 border-b border-line px-5 py-3.5; }
-  .panel-title { @apply text-[13px] font-semibold tracking-wide text-mist-100; }
-  .eyebrow { @apply text-[11px] font-medium uppercase tracking-[0.14em] text-mist-500; }
+  .panel { @apply rounded-2xl border border-line/80 bg-surface shadow-card; }
+  .panel-header { @apply flex items-center justify-between gap-3 px-6 pt-5 pb-1; }
+  .panel-title { @apply text-[15px] font-semibold tracking-tight text-fg; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-3; }
   .num { @apply font-mono tabular-nums whitespace-nowrap; }
-  .btn { @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-medium transition
-         disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/60; }
-  .btn-primary { @apply btn bg-signal text-white hover:bg-[#5d99ff] shadow-[0_0_0_1px_rgba(76,141,255,0.4)]; }
-  .btn-ghost { @apply btn border border-line bg-ink-850 text-mist-300 hover:border-ink-600 hover:text-mist-100; }
-  .input { @apply w-full rounded-lg border border-line bg-ink-850 px-3 py-2 text-[13px] text-mist-100
-           placeholder:text-mist-500 focus:border-signal/60 focus:outline-none focus:ring-1 focus:ring-signal/40; }
-  .table-head th { @apply px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-[0.1em] text-mist-500; }
-  .table-row td { @apply border-t border-line/70 px-4 py-2.5 text-[13px]; }
-  .table-row { @apply transition-colors hover:bg-ink-800/60; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition
+         disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50
+         focus-visible:ring-offset-2; }
+  .btn-primary { @apply btn bg-signal text-white shadow-brand hover:bg-signal-hover; }
+  .btn-ghost { @apply btn border border-line bg-surface text-fg-2 shadow-sm hover:border-signal-ring hover:text-signal; }
+  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-fg shadow-sm
+           placeholder:text-fg-4 transition focus:border-signal focus:outline-none focus:ring-4 focus:ring-signal/10; }
+  .table-head th { @apply bg-sunken px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-3; }
+  .table-row td { @apply border-t border-line px-4 py-3 text-[13px] text-fg; }
+  .table-row { @apply transition-colors hover:bg-hover; }
+  .icon-tile { @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] text-white shadow-brand; }
 }
