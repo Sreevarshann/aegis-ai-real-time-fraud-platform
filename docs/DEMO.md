@@ -112,7 +112,7 @@ docker compose up -d api
 
 New investigations show the **Local LLM · llama3.2:3b** badge if the narrative passes the grounding gate. If it fails,
 the report says **Deterministic engine** and gives the reason. On a 4-vCPU VM one narration took about 65 s
-(screenshot `docs/screenshots/09-llm-investigation.png`).
+(screenshot `docs/screenshots/09-llm-investigation.png`, regenerated after the UI redesign).
 
 ## Optional: Prometheus + Grafana
 

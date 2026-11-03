@@ -9,7 +9,7 @@ AEGIS AI is a runnable, end-to-end fraud-intelligence platform. Synthetic paymen
 **Redpanda (Kafka API)** into a Python consumer. The consumer validates, deduplicates and featurises each event,
 then scores it with a **scikit-learn** model and persists the result atomically to **PostgreSQL**. A **LangGraph**
 workflow investigates alerts using only evidence retrieved from the database. **dbt Core** builds analytical marts,
-and a **React + TypeScript** dashboard shows all of it live.
+and a **React + TypeScript** analytics workspace (clean white-and-blue design system, Tailwind + Recharts) shows all of it live.
 
 > **Everything is synthetic.** All customers, merchants, devices and transactions are artificial and generated
 > from a fixed seed. This is a research and review platform. It makes **no automated financial decisions**.
@@ -49,7 +49,7 @@ AEGIS implements that loop at laptop scale with production-style engineering.
 | **Machine learning** | Point-in-time features shared by training and serving. Chronological 70/15/15 split. Logistic-regression baseline vs. histogram gradient boosting with class weighting. Platt calibration, F1-optimal threshold, permutation importance, MLflow tracking, model registry with hot-swap, PSI drift monitoring. |
 | **Explanations** | Per-transaction *single-feature baseline substitution*: each feature's contribution is the change in the real model's probability when that feature is reset to its training median. These are real counterfactuals, not made-up weights. |
 | **Investigations** | LangGraph state machine with 6 tenant-scoped evidence tools. Rule-based indicators cite evidence IDs; priority P1–P4; timeline; limitations. Optional **Ollama** narration behind a grounding gate: citations must exist and every number must appear in the evidence. The UI shows whether the LLM or the deterministic engine was used. |
-| **Dashboard** | Six pages: Overview, Live Transactions (SSE with reconnect + polling fallback), Fraud Investigations, Data Intelligence, Model Intelligence, System Operations. Each has loading, empty, error and reconnection states. |
+| **Dashboard** | White-and-blue design system (semantic tokens, gradient stat cards, CVD-validated chart palette). Six pages: Overview, Live Transactions (SSE with reconnect + polling fallback), Fraud Investigations, Data Intelligence, Model Intelligence, System Operations, plus a global transaction search in the top bar. Each has loading, empty, error and reconnection states. |
 | **Security** | JWT (HS256), bcrypt, three roles (admin/analyst/viewer), tenant predicates in every query, audit log, parameterised SQL, server-side validation, non-root containers, secret scanning in CI. |
 | **Observability** | structlog JSON logs with request IDs, `/health/live` and `/health/ready`, Prometheus metrics on the API and consumer, pipeline windows in Postgres, 10 scheduled DQ checks, optional Prometheus + Grafana profile. |
 
@@ -165,29 +165,36 @@ docker compose --profile llm up -d ollama && docker compose exec ollama ollama p
 
 A full script with expected output is in [docs/DEMO.md](docs/DEMO.md). In short:
 
-1. **Overview**: live counters, transactions per minute, risk categories, recent alerts with their top factor, and service health.
+0. **Sign in**: split-screen login. Pick a demo account; the tenant comes from the JWT, never from the UI.
+1. **Overview**: KPI cards (total, live rate, suspicious activity, model PR-AUC), a 1h/6h/24h window toggle, alert
+   activity and transaction volume charts, risk categories and score distribution, merchant-category risk from the dbt
+   mart, recent alerts with their top factor, and service health.
 2. **Generate traffic**: as admin, press *Generate 500 transactions* or *Inject fraud scenarios*. Events go through Kafka and
    the real consumer.
-3. **Live Transactions**: the SSE feed flashes new rows. Filter, search and click a row to see the model explanation,
+3. **Live Transactions**: the SSE feed flashes new rows. Filter, search (also from the top bar) and click a row to see the model explanation,
    the Kafka partition/offset and every feature value.
 4. **Fraud Investigations**: press *Investigate* on an alert. The report shows indicators, cited evidence, a timeline,
    the recommended action and limitations. Record a review decision; the alert status follows it.
-5. **Data Intelligence**: DQ checks, the quarantine table and reasons, dbt run results and the analytical marts.
+5. **Data Intelligence**: summary cards (checks passing, quarantined events, dbt nodes, completeness), a quality
+   trend, DQ checks, the quarantine table and reasons, dbt run results and the analytical marts.
 6. **Model Intelligence**: real test metrics, confusion matrix, candidate comparison, per-scenario recall, feature
    importance, PSI drift and live performance against simulator labels.
-7. **System Operations**: service health, consumer counters and latency, throughput, pipeline errors and the audit log.
+7. **System Operations**: an overall health banner, service health, consumer counters and latency, throughput,
+   pipeline errors and the audit log.
 8. **Incident drill**: `make incident` sends one message of every defect class. All are quarantined
    ([docs/DEMO.md#incident](docs/DEMO.md#incident-scenario-malformed-data-is-quarantined)).
 
 | | |
 |---|---|
-| ![Live transactions](docs/screenshots/02-live-transactions.png) | ![Transaction explanation](docs/screenshots/03-transaction-detail.png) |
-| ![Investigation queue](docs/screenshots/04-investigation-queue.png) | ![Investigation report](docs/screenshots/05-investigation-report.png) |
+| ![Sign in](docs/screenshots/00-login.png) | ![Live transactions](docs/screenshots/02-live-transactions.png) |
+| ![Transaction explanation](docs/screenshots/03-transaction-detail.png) | ![Investigation queue](docs/screenshots/04-investigation-queue.png) |
+| ![Investigation report](docs/screenshots/05-investigation-report.png) | ![LLM investigation](docs/screenshots/09-llm-investigation.png) |
 | ![Data intelligence](docs/screenshots/06-data-intelligence.png) | ![Model intelligence](docs/screenshots/07-model-intelligence.png) |
-| ![System operations](docs/screenshots/08-system-operations.png) | ![LLM investigation](docs/screenshots/09-llm-investigation.png) |
+| ![System operations](docs/screenshots/08-system-operations.png) | |
 
-All screenshots were captured by Playwright (`frontend/e2e/screenshots.spec.ts`) from the running stack. The last one
-shows an investigation narrated by a local `llama3.2:3b` model that passed the grounding gate.
+All ten screenshots were captured by Playwright (`make screenshots`, i.e. `frontend/e2e/screenshots.spec.ts`) from the
+running stack after the white-and-blue redesign. The LLM screenshot shows an investigation narrated by a local
+`llama3.2:3b` model that passed the grounding gate; the other reports use the deterministic engine.
 
 ## API endpoints
 
