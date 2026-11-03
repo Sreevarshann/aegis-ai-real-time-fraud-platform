@@ -42,10 +42,33 @@ from aegis.db.engine import get_engine  # noqa: E402
 BACKEND = Path(__file__).resolve().parents[2]
 
 
+def _ensure_test_database() -> None:
+    """Create the test database if missing.
+
+    The Compose init script normally creates it, but bind mounts can silently fail (e.g. Colima only shares the
+    home directory with its VM), so the tests do not depend on it.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+
+    url = make_url(TEST_DB)
+    admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            exists = conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :d"), {"d": url.database}).scalar()
+            if not exists:
+                conn.exec_driver_sql(f'CREATE DATABASE "{url.database}"')
+    except Exception as exc:  # unreachable server is reported by _infra_available() with a clear message
+        print(f"could not ensure test database exists: {exc.__class__.__name__}")
+    finally:
+        admin.dispose()
+
+
 def _infra_available() -> str | None:
     import redis
     from confluent_kafka.admin import AdminClient
 
+    _ensure_test_database()
     try:
         get_engine().connect().close()
     except Exception as exc:
