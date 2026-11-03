@@ -12,7 +12,7 @@ test.describe("AEGIS dashboard against the running stack", () => {
   test("overview shows live statistics from the pipeline", async ({ page }) => {
     await login(page);
     await expect(page.getByText("Total transactions")).toBeVisible();
-    const total = page.locator("text=Total transactions").locator("xpath=../..").locator(".num").first();
+    const total = page.locator("text=Total transactions").locator("xpath=..").getByTestId("stat-value");
     await expect(total).not.toHaveText("0");
     await expect(page.getByText("All systems operational")).toBeVisible();
   });
