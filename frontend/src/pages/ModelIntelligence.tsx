@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarsChart, Legend, SERIES } from "../components/charts";
-import { EmptyState, ErrorState, KeyValue, LoadingBlock, Panel, Pill, Stat } from "../components/ui";
+import { BarsChart, ChartTooltip, Legend, SERIES } from "../components/charts";
+import { EmptyState, ErrorState, KeyValue, LoadingBlock, PageHeader, Panel, Pill, Stat } from "../components/ui";
 import { api } from "../lib/api";
 import { fmtInt, fmtNum, fmtPct, fmtTime, titleCase } from "../lib/format";
 
@@ -26,13 +26,13 @@ function Confusion({ m }: { m: Metrics["confusion_matrix"] }) {
   const cells = [["True negative", m.tn, false], ["False positive", m.fp, true], ["False negative", m.fn, true], ["True positive", m.tp, false]] as const;
   return (
     <div>
-      <div className="mb-2 grid grid-cols-[80px_1fr_1fr] gap-2 text-[11px] text-mist-500"><span /><span className="text-center">Predicted legit</span><span className="text-center">Predicted fraud</span></div>
+      <div className="mb-2 grid grid-cols-[80px_1fr_1fr] gap-2 text-[11px] text-fg-3"><span /><span className="text-center">Predicted legit</span><span className="text-center">Predicted fraud</span></div>
       {[0, 1].map((row) => (
         <div key={row} className="mb-2 grid grid-cols-[80px_1fr_1fr] gap-2">
-          <span className="self-center text-[11px] text-mist-500">{row === 0 ? "Actual legit" : "Actual fraud"}</span>
+          <span className="self-center text-[11px] text-fg-3">{row === 0 ? "Actual legit" : "Actual fraud"}</span>
           {cells.slice(row * 2, row * 2 + 2).map(([label, v, bad]) => (
             <div key={label} className={`rounded-lg border p-3 text-center ${bad ? "border-risk-high/30 bg-risk-high/5" : "border-teal/25 bg-teal/5"}`}>
-              <div className="num text-[20px]">{fmtInt(v)}</div><div className="text-[11px] text-mist-500">{label}</div>
+              <div className="num text-[20px]">{fmtInt(v)}</div><div className="text-[11px] text-fg-3">{label}</div>
             </div>
           ))}
         </div>
@@ -52,18 +52,19 @@ export default function ModelIntelligence() {
   const driftData = d.data?.score_bins?.map((b, i) => ({ bin: b, reference: d.data!.reference_distribution![i], live: d.data!.live_distribution![i] })) ?? [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <PageHeader title="Risk model" description="Evaluation of the active model on a held-out chronological test split, explainability, and drift of live predictions against the training reference." />
       <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Model version" value={<span className="text-[17px]">{s.version}</span>} hint={titleCase(s.algorithm)} />
+        <Stat label="Model version" value={<span className="num block whitespace-nowrap text-[16px]">{s.version}</span>} hint={titleCase(s.algorithm)} />
         <Stat label="Precision" value={fmtNum(t.precision)} hint="test split" />
         <Stat label="Recall" value={fmtNum(t.recall)} hint="test split" />
         <Stat label="F1" value={fmtNum(t.f1)} hint={`threshold ${fmtNum(s.decision_threshold, 2)}`} />
         <Stat label="PR-AUC" value={fmtNum(t.pr_auc)} hint={`base rate ${fmtPct(s.training_summary.positive_rate.test, 2)}`} />
         <Stat label="ROC-AUC" value={fmtNum(t.roc_auc)} hint={`${fmtInt(t.support_total)} test rows`} />
       </div>
-      <p className="text-[12px] text-mist-500">Metrics are measured on a held-out chronological test split of <b>synthetic</b> data generated with seed {s.training_summary.seed}. They describe performance on the simulator's fraud patterns, not real-world fraud.</p>
+      <p className="text-[12px] text-fg-3">Metrics are measured on a held-out chronological test split of <b>synthetic</b> data generated with seed {s.training_summary.seed}. They describe performance on the simulator's fraud patterns, not real-world fraud.</p>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <Panel title="Confusion matrix" subtitle={`Test split at threshold ${fmtNum(s.decision_threshold, 3)}`}><Confusion m={t.confusion_matrix} /></Panel>
         <Panel title="Model card">
           <KeyValue items={[
@@ -95,7 +96,7 @@ export default function ModelIntelligence() {
             <table className="w-full text-[12px]">
               <tbody>
                 {s.training_summary.test_recall_by_scenario.map((r) => (
-                  <tr key={r.scenario}><td className="py-0.5 text-mist-300">{titleCase(r.scenario)}</td><td className="num py-0.5 text-right text-mist-500">{fmtInt(r.alerts)}/{fmtInt(r.n)}</td><td className="num py-0.5 pl-3 text-right">{fmtPct(r.alert_rate)}</td></tr>
+                  <tr key={r.scenario}><td className="py-0.5 text-fg-2">{titleCase(r.scenario)}</td><td className="num py-0.5 text-right text-fg-3">{fmtInt(r.alerts)}/{fmtInt(r.n)}</td><td className="num py-0.5 pl-3 text-right">{fmtPct(r.alert_rate)}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -103,7 +104,7 @@ export default function ModelIntelligence() {
         </Panel>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="Feature importance" subtitle="Permutation importance (drop in PR-AUC) on the test split">
           <BarsChart data={s.feature_importance.slice(0, 12).map((f) => ({ ...f, importance: Number(f.importance.toFixed(4)) }))} x="feature" y="importance" name="Δ PR-AUC" layout="vertical" height={360} color={SERIES[1]} />
         </Panel>
@@ -112,7 +113,7 @@ export default function ModelIntelligence() {
         </Panel>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="Prediction drift" subtitle="Population Stability Index of live scores vs. the test-split reference (most recent 2,000 predictions)"
           actions={d.data?.score_status && <span data-testid="drift-status"><Pill tone={DRIFT_TONE[d.data.score_status as keyof typeof DRIFT_TONE]}>Score PSI {d.data.score_psi} · {d.data.score_status}</Pill></span>}>
           {d.isLoading ? <LoadingBlock /> : d.isError ? <ErrorState error={d.error} /> : d.data?.status === "insufficient_data" ? (
@@ -122,11 +123,10 @@ export default function ModelIntelligence() {
               <Legend items={[{ label: "Reference (test split)", color: SERIES[0] }, { label: "Live", color: SERIES[1] }]} />
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={driftData} margin={{ top: 12, right: 8, left: -12, bottom: 0 }} barGap={2}>
-                  <CartesianGrid stroke="#1e2a44" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="bin" stroke="#62708f" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#62708f" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
-                  <Tooltip cursor={{ fill: "rgba(76,141,255,0.06)" }} contentStyle={{ background: "#0d1426", border: "1px solid #1e2a44", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => fmtPct(v, 2)} />
+                  <CartesianGrid stroke="#eef1f6" vertical={false} />
+                  <XAxis dataKey="bin" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "#64748b" }} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "#64748b" }} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                  <Tooltip cursor={{ fill: "rgba(37,99,235,0.05)" }} content={<ChartTooltip valueFormatter={(v) => fmtPct(Number(v), 2)} />} />
                   <Bar dataKey="reference" name="Reference" fill={SERIES[0]} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                   <Bar dataKey="live" name="Live" fill={SERIES[1]} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                 </BarChart>
@@ -139,18 +139,18 @@ export default function ModelIntelligence() {
             <table className="w-full">
               <thead className="table-head"><tr><th>Feature</th><th className="text-right">PSI</th><th>Status</th></tr></thead>
               <tbody>{d.data.features.map((f) => (
-                <tr key={f.feature} className="table-row"><td className="num text-[12px]">{f.feature}</td><td className="num text-right">{f.psi}</td>
+                <tr key={f.feature} className="table-row"><td className="num whitespace-normal break-all text-[12px]">{f.feature}</td><td className="num text-right">{f.psi}</td>
                   <td><Pill tone={DRIFT_TONE[f.status as keyof typeof DRIFT_TONE]}>{f.status}</Pill></td></tr>
               ))}</tbody>
             </table>
-          ) : <div className="p-5 text-[12px] text-mist-500">Feature drift appears once enough predictions exist.</div>}
+          ) : <div className="p-5 text-[12px] text-fg-3">Feature drift appears once enough predictions exist.</div>}
           <div className="border-t border-line p-4">
             <div className="eyebrow mb-2">Live alerting vs. simulator labels (7d)</div>
             <KeyValue items={[
               ["Precision", fmtNum(live.precision)], ["Recall", fmtNum(live.recall)],
               ["TP / FP / FN", <span className="num">{live.tp} / {live.fp} / {live.fn}</span>],
             ]} />
-            <p className="mt-2 text-[11px] text-mist-500">{live.note}</p>
+            <p className="mt-2 text-[11px] text-fg-3">{live.note}</p>
           </div>
         </Panel>
       </div>

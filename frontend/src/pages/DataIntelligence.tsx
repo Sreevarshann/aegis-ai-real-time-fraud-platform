@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, CircleAlert, PlayCircle, XCircle } from "lucide-react";
-import { BarsChart } from "../components/charts";
-import { EmptyState, ErrorState, LoadingBlock, Panel, Pill, Spinner } from "../components/ui";
+import { Ban, CheckCircle2, CircleAlert, Gauge, PlayCircle, ShieldCheck, Workflow, XCircle } from "lucide-react";
+import { BarsChart, Legend, LinesChart, SERIES } from "../components/charts";
+import { EmptyState, ErrorState, LoadingBlock, PageHeader, Panel, Pill, Spinner, Stat } from "../components/ui";
 import { api, post } from "../lib/api";
 import { canAnalyze, useAuth } from "../lib/auth";
 import { fmtAgo, fmtInt, fmtPct, fmtTime, titleCase } from "../lib/format";
@@ -28,10 +28,38 @@ export default function DataIntelligence() {
   const dbtRows = an.data?.transformations.filter((t) => t.invocation_id === latestInvocation) ?? [];
   const dbtFailed = dbtRows.filter((t) => ["fail", "error"].includes(t.status)).length;
   const marts = an.data?.marts ?? {};
+  const dqPass = dq.data?.latest.filter((c) => c.status === "pass").length ?? 0;
+  const dqWarn = dq.data?.latest.filter((c) => c.status === "warn").length ?? 0;
+  const dqFail = dq.data?.latest.filter((c) => c.status === "fail").length ?? 0;
+  const minCheck = (marts.completeness ?? []).reduce<Row | null>((m, r) => (m == null || Number(r.pass_rate) < Number(m.pass_rate) ? r : m), null);
+  const minCompleteness = minCheck ? Number(minCheck.pass_rate) : null;
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-3">
+    <div className="space-y-6">
+      <PageHeader title="Data quality & analytics" description="Operational checks on the pipeline's output, quarantined events, dbt transformation runs and the analytical marts they build." />
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Checks passing" icon={<ShieldCheck className="h-5 w-5" />} tone={dqFail ? "alert" : "good"}
+          value={dq.data?.latest.length ? `${dqPass}/${dq.data.latest.length}` : "—"}
+          hint={dq.data?.latest.length ? `${dqWarn} warning · ${dqFail} failing` : "waiting for first run"} />
+        <Stat label="Quarantined events" icon={<Ban className="h-5 w-5" />} tone="alert"
+          value={fmtInt(dl.data?.by_reason.reduce((a, r) => a + r.count, 0) ?? 0)}
+          hint={dl.data?.by_reason[0] ? `top reason: ${dl.data.by_reason[0].reason}` : "nothing rejected"} />
+        <Stat label="dbt nodes passing" icon={<Workflow className="h-5 w-5" />} tone={dbtFailed ? "alert" : "default"}
+          value={dbtRows.length ? `${dbtRows.length - dbtFailed}/${dbtRows.length}` : "—"}
+          hint={dbtRows[0] ? `last build ${fmtAgo(dbtRows[0].invocation_completed_at)}` : "no build yet"} />
+        <Stat label="Lowest completeness" icon={<Gauge className="h-5 w-5" />}
+          value={minCompleteness != null ? fmtPct(minCompleteness, 2) : "—"}
+          hint={minCheck ? titleCase(String(minCheck.check_name)) : "marts not built yet"} />
+      </div>
+
+      <Panel title="Quality trend" subtitle="Check outcomes per run, last 6 hours">
+        {dq.data?.history.length ? <><Legend items={[{ label: "Passed", color: SERIES[0] }, { label: "Warnings", color: SERIES[1] }, { label: "Failed", color: SERIES[2] }]} />
+          <LinesChart data={dq.data.history} x="checked_at" height={200}
+          series={[{ key: "passed", name: "Passed" }, { key: "warned", name: "Warnings" }, { key: "failed", name: "Failed" }]}
+          xFormatter={(v) => fmtTime(String(v))} /></> : <EmptyState title="No runs yet" />}
+      </Panel>
+      <div className="grid gap-6 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="Data quality checks" subtitle={dq.data?.latest[0] ? `Latest run ${fmtAgo(dq.data.latest[0].checked_at)} · runs every 60s in the consumer` : "Operational checks over the pipeline output"}
           actions={canAnalyze(user) && <button className="btn-ghost" onClick={() => run.mutate()} disabled={run.isPending}>{run.isPending ? <Spinner /> : <PlayCircle className="h-3.5 w-3.5" />}Run checks now</button>}
           bodyClass="p-0">
@@ -43,10 +71,10 @@ export default function DataIntelligence() {
                   {dq.data.latest.map((c) => (
                     <tr key={c.check_name} className="table-row">
                       <td className="w-8">{STATUS_ICON[c.status]}</td>
-                      <td><div className="num text-[12px]">{c.check_name}</div><div className="text-[11px] text-mist-500">{c.details.description}</div></td>
+                      <td><div className="num text-[12px]">{c.check_name}</div><div className="text-[11px] text-fg-3">{c.details.description}</div></td>
                       <td><Pill>{c.dimension}</Pill></td>
                       <td className="num text-right">{c.observed_value ?? "n/a"}</td>
-                      <td className="num text-right text-mist-500">{c.threshold ?? "—"}</td>
+                      <td className="num text-right text-fg-3">{c.threshold ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -63,15 +91,15 @@ export default function DataIntelligence() {
         {dl.data?.items.length ? (
           <div className="max-h-[360px] overflow-auto">
             <table className="w-full min-w-[900px]" data-testid="dead-letter-table">
-              <thead className="table-head sticky top-0 bg-ink-900"><tr><th>Received</th><th>Reason</th><th>Detail</th><th>Source</th><th>Payload (truncated)</th></tr></thead>
+              <thead className="table-head sticky top-0 bg-surface"><tr><th>Received</th><th>Reason</th><th>Detail</th><th>Source</th><th>Payload (truncated)</th></tr></thead>
               <tbody>
                 {dl.data.items.map((d) => (
                   <tr key={d.dead_letter_id} className="table-row align-top">
-                    <td className="num whitespace-nowrap text-mist-300">{fmtTime(d.received_at)}</td>
+                    <td className="num whitespace-nowrap text-fg-2">{fmtTime(d.received_at)}</td>
                     <td><Pill tone="bad">{d.reason}</Pill></td>
-                    <td className="max-w-[280px] text-[12px] text-mist-300">{d.error_detail}</td>
-                    <td className="num whitespace-nowrap text-[12px] text-mist-500">p{d.source_partition}@{d.source_offset}</td>
-                    <td className="num max-w-[320px] truncate text-[11px] text-mist-500">{d.raw_payload}</td>
+                    <td className="max-w-[280px] text-[12px] text-fg-2">{d.error_detail}</td>
+                    <td className="num whitespace-nowrap text-[12px] text-fg-3">p{d.source_partition}@{d.source_offset}</td>
+                    <td className="num max-w-[320px] truncate text-[11px] text-fg-3">{d.raw_payload}</td>
                   </tr>
                 ))}
               </tbody>
@@ -80,19 +108,19 @@ export default function DataIntelligence() {
         ) : <EmptyState title="Nothing quarantined" />}
       </Panel>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="dbt transformations" subtitle={latestInvocation ? `Latest invocation ${fmtAgo(dbtRows[0]?.invocation_completed_at)} · ${dbtRows.length} nodes · ${dbtFailed} failed` : "dbt Core runs every 2 minutes"} bodyClass="p-0">
           {an.isLoading ? <div className="p-5"><LoadingBlock /></div> : !dbtRows.length ? <EmptyState title="dbt has not run yet" /> : (
             <div className="max-h-[340px] overflow-auto">
               <table className="w-full" data-testid="dbt-table">
-                <thead className="table-head sticky top-0 bg-ink-900"><tr><th>Node</th><th>Type</th><th>Status</th><th className="text-right">Time</th></tr></thead>
+                <thead className="table-head sticky top-0 bg-surface"><tr><th>Node</th><th>Type</th><th>Status</th><th className="text-right">Time</th></tr></thead>
                 <tbody>
                   {dbtRows.map((t) => (
                     <tr key={t.node_id} className="table-row">
                       <td className="num max-w-[320px] truncate text-[12px]">{t.node_id.split(".").slice(2).join(".")}</td>
-                      <td className="text-mist-400">{t.resource_type}</td>
+                      <td className="text-fg-2">{t.resource_type}</td>
                       <td><Pill tone={["pass", "success"].includes(t.status) ? "good" : t.status === "warn" ? "warn" : "bad"}>{t.status}</Pill></td>
-                      <td className="num text-right text-mist-400">{t.execution_time_s?.toFixed(2)}s</td>
+                      <td className="num text-right text-fg-2">{t.execution_time_s?.toFixed(2)}s</td>
                     </tr>
                   ))}
                 </tbody>
@@ -117,7 +145,7 @@ export default function DataIntelligence() {
         </Panel>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="Hourly volume (dbt mart)" subtitle="analytics.fct_hourly_volume · event time">
           {marts.hourly_volume?.length ? <BarsChart data={[...marts.hourly_volume].reverse().map((h) => ({ ...h,
             label: new Date(String(h.hour)).toLocaleString("en-US", { hour12: false, month: "short", day: "numeric", hour: "2-digit" }) }))}
