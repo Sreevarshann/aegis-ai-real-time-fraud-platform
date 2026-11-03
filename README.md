@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/aegis-logo.png" alt="AEGIS AI logo" width="112"></p>
+
 # AEGIS AI — Real-Time Financial Intelligence, Fraud Detection & Autonomous Investigation Platform
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
