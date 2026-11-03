@@ -8,6 +8,10 @@ test.use({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 });
 
 test("capture dashboard screenshots", async ({ page }) => {
   test.setTimeout(180_000);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/00-login.png` });
   await login(page, "admin@northwind.demo");
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${OUT}/01-overview.png`, fullPage: true });
