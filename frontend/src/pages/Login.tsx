@@ -1,6 +1,7 @@
-import { Activity, BrainCircuit, Search, ShieldCheck } from "lucide-react";
+import { Activity, BrainCircuit, Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../lib/auth";
+import { BrandLogo } from "../components/Brand";
 import { Spinner } from "../components/ui";
 
 const DEMO = [
@@ -40,9 +41,7 @@ export default function Login() {
     <div className="grid min-h-full bg-surface lg:grid-cols-[1fr_1.05fr]">
       <div className="flex flex-col px-6 py-8 sm:px-12 lg:px-16">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-brand">
-            <ShieldCheck className="h-5 w-5 text-white" />
-          </div>
+          <BrandLogo height={38} />
           <div className="text-[17px] font-bold tracking-tight">AEGIS <span className="text-signal">AI</span></div>
         </div>
 
@@ -89,6 +88,10 @@ export default function Login() {
         <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-[#60a5fa]/25 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:44px_44px]" />
         <div className="relative max-w-[520px] text-white">
+          <span className="mb-8 inline-grid h-16 w-16 place-items-center rounded-2xl bg-white shadow-[0_12px_32px_-8px_rgba(15,23,42,0.45)]">
+            <BrandLogo height={34} />
+          </span>
+          <br />
           <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[12px] font-medium ring-1 ring-white/25">
             <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />Real-time financial intelligence
           </span>

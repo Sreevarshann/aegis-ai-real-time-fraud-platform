@@ -1,13 +1,14 @@
 import clsx from "clsx";
 import {
   Activity, BookOpen, BrainCircuit, Building2, ChevronRight, Database, LayoutDashboard, LogOut, Menu, Search, ServerCog,
-  ShieldCheck, X,
+  X,
 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { BrandLogo } from "./Brand";
 import { StatusDot } from "./ui";
 
 const SECTIONS = [
@@ -87,9 +88,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}>
         <div className="flex h-full flex-col lg:sticky lg:top-0 lg:h-screen">
           <div className="flex items-center gap-3 px-6 py-6">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-brand">
-              <ShieldCheck className="h-5 w-5 text-white" />
-            </div>
+            <BrandLogo height={34} />
             <div>
               <div className="text-[16px] font-bold tracking-tight text-fg">AEGIS <span className="text-signal">AI</span></div>
               <div className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-fg-3">Fraud Intelligence</div>
