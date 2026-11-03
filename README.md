@@ -118,7 +118,14 @@ sequenceDiagram
   C->>R: read customer/merchant/device history (excluding this txn id)
   C->>C: features → batched predict_proba + occlusion explanations
   C->>R: record event (ZADD keyed by txn id ⇒ idempotent)
-  C->>DB: BEGIN; INSERT txns ON CONFLICT DO NOTHING; labels; predictions; alerts; dead letters; COMMIT
+  rect rgba(37, 99, 235, 0.08)
+    Note over C,DB: one atomic database transaction
+    C->>DB: BEGIN
+    C->>DB: INSERT transactions ON CONFLICT DO NOTHING
+    C->>DB: INSERT labels, predictions, alerts (newly inserted ids only)
+    C->>DB: INSERT dead letters ON CONFLICT DO NOTHING
+    C->>DB: COMMIT
+  end
   C->>Q: publish dead letters (flush)
   C->>K: commit offsets (sync) — only after COMMIT
 ```
