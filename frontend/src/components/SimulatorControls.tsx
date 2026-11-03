@@ -29,11 +29,11 @@ export default function SimulatorControls() {
         {btn("scenarios", "Inject fraud scenarios", Zap)}
         {btn("incident", "Send malformed batch", Bug)}
       </div>
-      {!admin && <p className="mt-3 text-[12px] text-mist-500">Read-only for your role. Sign in as an admin to publish events.</p>}
+      {!admin && <p className="mt-3 text-[12px] text-fg-3">Read-only for your role. Sign in as an admin to publish events.</p>}
       {run.isError && <p className="mt-3 text-[12px] text-risk-critical">{(run.error as Error).message}</p>}
       {last && (
-        <p className="mt-3 text-[12px] text-mist-300" data-testid="sim-result">
-          Published <span className="num text-mist-100">{last.sent}</span> messages ({Object.entries(last.expected_outcomes).map(([k, v]) => `${v} ${k.replace("_", " ")}`).join(", ")}).
+        <p className="mt-3 text-[12px] text-fg-2" data-testid="sim-result">
+          Published <span className="num text-fg">{last.sent}</span> messages ({Object.entries(last.expected_outcomes).map(([k, v]) => `${v} ${k.replace("_", " ")}`).join(", ")}).
         </p>
       )}
     </Panel>

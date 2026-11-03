@@ -14,7 +14,7 @@ import Transactions from "./pages/Transactions";
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) {
-    return <div className="grid h-full place-items-center text-mist-500"><Spinner className="h-6 w-6" /></div>;
+    return <div className="grid h-full place-items-center text-fg-3"><Spinner className="h-6 w-6" /></div>;
   }
   if (!user) {
     return (

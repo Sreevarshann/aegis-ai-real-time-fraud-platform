@@ -1,24 +1,40 @@
 import clsx from "clsx";
-import { Activity, BrainCircuit, Database, LayoutDashboard, LogOut, Menu, Search, ServerCog, ShieldCheck, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import {
+  Activity, BookOpen, BrainCircuit, Building2, ChevronRight, Database, LayoutDashboard, LogOut, Menu, Search, ServerCog,
+  ShieldCheck, X,
+} from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { StatusDot } from "./ui";
 
-const NAV = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
-  { to: "/transactions", label: "Live Transactions", icon: Activity },
-  { to: "/investigations", label: "Fraud Investigations", icon: Search },
-  { to: "/data", label: "Data Intelligence", icon: Database },
-  { to: "/models", label: "Model Intelligence", icon: BrainCircuit },
-  { to: "/operations", label: "System Operations", icon: ServerCog },
+const SECTIONS = [
+  {
+    label: "Monitoring",
+    items: [
+      { to: "/", label: "Overview", icon: LayoutDashboard },
+      { to: "/transactions", label: "Live Transactions", icon: Activity },
+      { to: "/investigations", label: "Fraud Investigations", icon: Search },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { to: "/data", label: "Data Intelligence", icon: Database },
+      { to: "/models", label: "Model Intelligence", icon: BrainCircuit },
+    ],
+  },
+  { label: "Platform", items: [{ to: "/operations", label: "System Operations", icon: ServerCog }] },
 ];
+const NAV = SECTIONS.flatMap((s) => s.items);
+const TENANT_NAME: Record<string, string> = { northwind: "Northwind Bank", meridian: "Meridian Credit Union" };
+const DOCS_URL = "https://github.com/Sreevarshann/aegis-ai-real-time-fraud-platform/tree/main/docs";
 
 interface Health { services: Record<string, { status: string }> }
 
-function HealthIndicator() {
+function HealthChip() {
   const { data, isError } = useQuery({
     queryKey: ["health"], queryFn: () => api<Health>("/operations/health"), refetchInterval: 15_000,
   });
@@ -26,10 +42,30 @@ function HealthIndicator() {
   const down = services.filter((s) => s.status === "down").length;
   const status = isError ? "down" : !data ? "unknown" : down ? "warn" : "up";
   return (
-    <NavLink to="/operations" className="flex items-center gap-2 rounded-lg border border-line bg-ink-850 px-3 py-1.5 text-[12px] text-mist-300 hover:text-mist-100">
+    <NavLink to="/operations" className={clsx(
+      "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium transition hover:shadow-sm",
+      status === "up" ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]" : status === "unknown" ? "border-line bg-sunken text-fg-3"
+        : "border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]",
+    )}>
       <StatusDot status={status} />
       {status === "up" ? "All systems operational" : status === "warn" ? `${down} service(s) degraded` : status === "down" ? "API unreachable" : "Checking…"}
     </NavLink>
+  );
+}
+
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (q.trim().length >= 2) navigate(`/transactions?q=${encodeURIComponent(q.trim())}`);
+  };
+  return (
+    <form onSubmit={submit} className="relative hidden md:block" role="search">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-4" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, merchant, device…"
+        aria-label="Search transactions" className="input w-72 rounded-full pl-9" />
+    </form>
   );
 }
 
@@ -38,63 +74,102 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   const current = NAV.find((n) => (n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to)));
-
-  const nav = (
-    <nav className="flex flex-1 flex-col gap-0.5 px-3">
-      {NAV.map(({ to, label, icon: Icon }) => (
-        <NavLink key={to} to={to} end={to === "/"} onClick={() => setOpen(false)}
-          className={({ isActive }) => clsx(
-            "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition",
-            isActive ? "bg-signal/10 text-mist-100 shadow-[inset_2px_0_0_#4c8dff]" : "text-mist-400 hover:bg-ink-800 hover:text-mist-100",
-          )}>
-          <Icon className="h-4 w-4 shrink-0" />{label}
-        </NavLink>
-      ))}
-    </nav>
-  );
+  const tenant = TENANT_NAME[user?.tenant_id ?? ""] ?? user?.tenant_id ?? "";
+  const initials = (user?.full_name ?? "?").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  const title = current?.label ?? "Investigation";
 
   return (
     <div className="flex min-h-full">
       <aside className={clsx(
-        "fixed inset-y-0 left-0 z-40 w-60 shrink-0 border-r border-line bg-ink-900/95 backdrop-blur transition-transform",
+        "fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-line bg-surface transition-transform",
         "lg:static lg:translate-x-0",
-        open ? "translate-x-0" : "-translate-x-full",
+        open ? "translate-x-0 shadow-lift" : "-translate-x-full",
       )}>
-       <div className="flex h-full flex-col lg:sticky lg:top-0 lg:h-screen">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-signal/30 to-teal/20 ring-1 ring-signal/40">
-            <ShieldCheck className="h-4.5 w-4.5 text-signal" />
+        <div className="flex h-full flex-col lg:sticky lg:top-0 lg:h-screen">
+          <div className="flex items-center gap-3 px-6 py-6">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-brand">
+              <ShieldCheck className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-[16px] font-bold tracking-tight text-fg">AEGIS <span className="text-signal">AI</span></div>
+              <div className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-fg-3">Fraud Intelligence</div>
+            </div>
+            <button className="ml-auto text-fg-3 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
           </div>
-          <div>
-            <div className="text-[14px] font-semibold tracking-wide">AEGIS<span className="text-signal"> AI</span></div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-mist-500">Financial Intelligence</div>
+          <div className="mx-6 h-px bg-line" />
+
+          <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5">
+            {SECTIONS.map((section) => (
+              <div key={section.label}>
+                <div className="eyebrow mb-2 px-3">{section.label}</div>
+                <div className="flex flex-col gap-1">
+                  {section.items.map(({ to, label, icon: Icon }) => (
+                    <NavLink key={to} to={to} end={to === "/"} onClick={() => setOpen(false)}
+                      className={({ isActive }) => clsx(
+                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition",
+                        isActive ? "bg-signal-soft text-signal" : "text-fg-2 hover:bg-hover hover:text-fg",
+                      )}>
+                      {({ isActive }) => (
+                        <>
+                          <span className={clsx("grid h-8 w-8 place-items-center rounded-lg transition",
+                            isActive ? "bg-signal text-white shadow-brand" : "bg-sunken text-fg-3 ring-1 ring-line group-hover:text-signal")}>
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          {label}
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          <div className="m-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#1e40af] p-5 text-white shadow-brand">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15"><BookOpen className="h-4 w-4" /></span>
+            <div className="mt-3 text-[14px] font-semibold">Need the details?</div>
+            <p className="mt-1 text-[12px] leading-relaxed text-white/80">Architecture, pipeline guarantees and model methodology.</p>
+            <a href={DOCS_URL} target="_blank" rel="noreferrer"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-white px-3 py-2 text-[12px] font-semibold text-signal hover:bg-white/90">
+              Read the docs
+            </a>
           </div>
-          <button className="ml-auto lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-4 w-4" /></button>
+          <p className="px-6 pb-5 text-[10.5px] leading-relaxed text-fg-3">Synthetic data only · research & review platform — no automated financial decisions.</p>
         </div>
-        {nav}
-        <div className="m-3 rounded-lg border border-line bg-ink-850 p-3">
-          <div className="truncate text-[13px] font-medium">{user?.full_name}</div>
-          <div className="truncate text-[11px] text-mist-500">{user?.email}</div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-mist-300">{user?.role} · {user?.tenant_id}</span>
-            <button onClick={logout} className="text-mist-500 hover:text-mist-100" aria-label="Sign out" title="Sign out"><LogOut className="h-4 w-4" /></button>
-          </div>
-        </div>
-        <p className="px-5 pb-4 text-[10px] leading-relaxed text-mist-500">Synthetic data only. Research & review platform — no automated financial decisions.</p>
-       </div>
       </aside>
-      {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-30 bg-fg/30 backdrop-blur-[1px] lg:hidden" onClick={() => setOpen(false)} />}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-ink-950/80 px-4 py-3 backdrop-blur md:px-8">
-          <button className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
-          <div>
-            <div className="eyebrow">{user?.tenant_id === "northwind" ? "Northwind Bank" : "Meridian Credit Union"} · synthetic tenant</div>
-            <h1 className="text-[17px] font-semibold tracking-tight">{current?.label ?? "Investigation"}</h1>
+        <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-[1520px] items-center gap-3 px-4 py-3.5 md:px-8">
+            <button className="text-fg-2 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 text-[12px] text-fg-3">
+                <span>AEGIS</span><ChevronRight className="h-3 w-3" /><span className="truncate">{title}</span>
+              </div>
+              <h1 className="truncate text-[18px] font-semibold tracking-tight text-fg">{title}</h1>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <GlobalSearch />
+              <span className="hidden items-center gap-1.5 rounded-full border border-line bg-sunken px-3 py-1.5 text-[12px] font-medium text-fg-2 xl:inline-flex"
+                title="Tenant from your session">
+                <Building2 className="h-3.5 w-3.5 text-signal" />
+                <span>{tenant} · synthetic tenant</span>
+              </span>
+              <span className="hidden sm:block"><HealthChip /></span>
+              <div className="flex items-center gap-2.5 border-l border-line pl-3">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-signal-soft text-[12px] font-bold text-signal ring-1 ring-signal-ring">{initials}</span>
+                <div className="hidden leading-tight md:block">
+                  <div className="text-[13px] font-semibold text-fg">{user?.full_name}</div>
+                  <div className="text-[11px] capitalize text-fg-3">{user?.role}</div>
+                </div>
+                <button onClick={logout} className="grid h-8 w-8 place-items-center rounded-lg text-fg-3 hover:bg-hover hover:text-signal"
+                  aria-label="Sign out" title="Sign out"><LogOut className="h-4 w-4" /></button>
+              </div>
+            </div>
           </div>
-          <div className="ml-auto hidden sm:block"><HealthIndicator /></div>
         </header>
-        <main className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-6 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1520px] flex-1 px-4 py-7 md:px-8">{children}</main>
       </div>
     </div>
   );

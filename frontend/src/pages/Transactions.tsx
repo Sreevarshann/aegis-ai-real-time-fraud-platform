@@ -1,9 +1,10 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Pause, Play, Radio } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import TransactionDrawer from "../components/TransactionDrawer";
-import { EmptyState, ErrorState, LoadingBlock, Panel, Pill, RiskBadge, ScoreBar, Spinner } from "../components/ui";
+import { EmptyState, ErrorState, LoadingBlock, PageHeader, Panel, Pill, RiskBadge, ScoreBar, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { fmtMoney, fmtTime, titleCase } from "../lib/format";
 import { useTransactionFeed, type FeedMode } from "../lib/stream";
@@ -29,7 +30,13 @@ const MODE_LABEL: Record<FeedMode, [string, "teal" | "warn" | "bad" | "neutral"]
 };
 
 export default function TransactionsPage() {
-  const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [params0] = useSearchParams();
+  const [filters, setFilters] = useState<Filters>({ ...EMPTY, q: params0.get("q") ?? "" });
+  // A new search from the top bar replaces the current query.
+  useEffect(() => {
+    const q = params0.get("q");
+    if (q != null) { setLive([]); setFilters((f) => ({ ...f, q })); }
+  }, [params0]);
   const [paused, setPaused] = useState(false);
   const [live, setLive] = useState<Transaction[]>([]);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
@@ -77,7 +84,8 @@ export default function TransactionsPage() {
   const [label, tone] = MODE_LABEL[mode];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <PageHeader title="Transaction stream" description="Every event consumed from Kafka, validated, scored and persisted — streamed to this page over Server-Sent Events." />
       <Panel bodyClass="p-4">
         <div className="flex flex-wrap items-center gap-3">
           <input className="input max-w-xs" placeholder="Search customer, merchant, device, id…" value={filters.q} onChange={set("q")} aria-label="Search" />
@@ -116,13 +124,13 @@ export default function TransactionsPage() {
                   {rows.map((t) => (
                     <tr key={t.transaction_id} onClick={() => setSelected(t.transaction_id)}
                       className={clsx("table-row cursor-pointer", fresh.has(t.transaction_id) && "animate-flash")}>
-                      <td className="num text-mist-300">{fmtTime(t.event_timestamp)}{t.is_late && <span className="ml-1.5"><Pill tone="warn">late</Pill></span>}</td>
+                      <td className="num text-fg-2">{fmtTime(t.event_timestamp)}{t.is_late && <span className="ml-1.5"><Pill tone="warn">late</Pill></span>}</td>
                       <td className="num">{t.customer_id}</td>
-                      <td className="max-w-[200px] truncate">{t.merchant_name}<div className="text-[11px] text-mist-500">{titleCase(t.merchant_category)}</div></td>
-                      <td className="text-mist-300">{titleCase(t.payment_channel)}</td>
+                      <td className="max-w-[200px] truncate">{t.merchant_name}<div className="text-[11px] text-fg-3">{titleCase(t.merchant_category)}</div></td>
+                      <td className="text-fg-2">{titleCase(t.payment_channel)}</td>
                       <td className="num">{t.country}</td>
                       <td className="num text-right">{fmtMoney(t.amount, t.currency)}</td>
-                      <td>{t.status === "approved" ? <span className="text-mist-400">approved</span> : <Pill tone={t.status === "declined" ? "bad" : "neutral"}>{t.status}</Pill>}</td>
+                      <td>{t.status === "approved" ? <span className="text-fg-2">approved</span> : <Pill tone={t.status === "declined" ? "bad" : "neutral"}>{t.status}</Pill>}</td>
                       <td><ScoreBar score={t.risk_score} /></td>
                       <td><RiskBadge category={t.risk_category} /></td>
                     </tr>
@@ -134,7 +142,7 @@ export default function TransactionsPage() {
                   <button className="btn-ghost" onClick={() => q.fetchNextPage()} disabled={q.isFetchingNextPage}>
                     {q.isFetchingNextPage && <Spinner />}Load older
                   </button>
-                ) : <span className="text-[12px] text-mist-500">End of history</span>}
+                ) : <span className="text-[12px] text-fg-3">End of history</span>}
               </div>
             </div>
           )}
