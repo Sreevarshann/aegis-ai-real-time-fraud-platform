@@ -1,0 +1,9 @@
+version: 2
+seeds:
+  - name: fx_rates
+    description: Fixed synthetic FX rates (mirrors aegis.simulator.reference.USD_PER_UNIT) used to normalise amounts.
+    columns:
+      - name: currency
+        tests: [unique, not_null]
+      - name: usd_per_unit
+        tests: [not_null]

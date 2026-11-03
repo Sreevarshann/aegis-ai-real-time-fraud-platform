@@ -1,0 +1,17 @@
+version: 2
+sources:
+  - name: aegis
+    schema: public
+    description: Operational tables written by the streaming consumer and API (managed by Alembic).
+    tables:
+      - name: transactions
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 15, period: minute}
+          error_after: {count: 2, period: hour}
+      - name: risk_predictions
+      - name: risk_alerts
+      - name: simulation_labels
+      - name: dead_letter_events
+      - name: customers
+      - name: merchants

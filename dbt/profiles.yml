@@ -1,0 +1,13 @@
+# Credentials come from environment variables only (see docker-compose.yml / .env).
+aegis:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PORT', '5432') | int }}"
+      user: "{{ env_var('DBT_USER', 'aegis') }}"
+      password: "{{ env_var('DBT_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_DBNAME', 'aegis') }}"
+      schema: analytics
+      threads: 4

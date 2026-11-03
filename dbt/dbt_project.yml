@@ -1,0 +1,25 @@
+name: aegis_analytics
+version: "1.0.0"
+config-version: 2
+profile: aegis
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  aegis_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+
+seeds:
+  aegis_analytics:
+    fx_rates:
+      +column_types:
+        currency: varchar(3)
+        usd_per_unit: numeric(12, 6)

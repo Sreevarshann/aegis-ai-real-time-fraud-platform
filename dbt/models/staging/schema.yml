@@ -1,0 +1,31 @@
+version: 2
+models:
+  - name: stg_transactions
+    description: Persisted transactions with USD-normalised amounts.
+    columns:
+      - name: transaction_id
+        tests: [unique, not_null]
+      - name: tenant_id
+        tests:
+          - not_null
+          - accepted_values: {values: ['northwind', 'meridian']}
+      - name: amount_usd
+        description: Null would mean a currency without an FX rate.
+        tests: [not_null]
+      - name: status
+        tests:
+          - accepted_values: {values: ['approved', 'declined', 'pending']}
+  - name: stg_predictions
+    columns:
+      - name: transaction_id
+        tests:
+          - unique
+          - not_null
+          - relationships: {to: ref('stg_transactions'), field: transaction_id}
+      - name: risk_category
+        tests:
+          - accepted_values: {values: ['low', 'medium', 'high', 'critical']}
+  - name: stg_labels
+    columns:
+      - name: transaction_id
+        tests: [unique, not_null]
