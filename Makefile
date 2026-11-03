@@ -17,7 +17,7 @@ PG_PASS   := $(or $(POSTGRES_PASSWORD),aegis)
 export AEGIS_TEST_DATABASE_URL ?= postgresql+psycopg://$(or $(POSTGRES_USER),aegis):$(PG_PASS)@localhost:55432/aegis_test
 
 .PHONY: help setup up demo test test-unit test-integration test-frontend test-e2e lint down clean \
-        infra train logs ps incident screenshots smoke check-docker
+        infra train logs ps incident screenshots smoke check-docker check-docs
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -82,6 +82,9 @@ test-e2e: ## Playwright browser tests against the running stack (make up first)
 
 screenshots: ## Regenerate docs/screenshots from the running stack with Playwright
 	cd frontend && E2E_BASE_URL=http://localhost:3000 SCREENSHOTS=1 npx playwright test e2e/screenshots.spec.ts
+
+check-docs: ## Render every Mermaid diagram in README.md and docs/ with the Mermaid CLI
+	node scripts/check_mermaid.mjs
 
 lint: ## Ruff, mypy, ESLint and TypeScript checks
 	cd $(BACKEND) && .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests && .venv/bin/mypy src

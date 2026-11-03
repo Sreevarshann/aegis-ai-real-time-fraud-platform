@@ -358,11 +358,13 @@ Last local run: **56/56 backend, 11/11 frontend, 7/7 Playwright, smoke passed, d
 
 ## CI/CD
 
-`.github/workflows/ci.yml` has five jobs:
+`.github/workflows/ci.yml` has six jobs:
 - **backend** runs ruff lint + format check, mypy and unit tests.
 - **integration** runs Postgres and Redis service containers plus Redpanda via `docker run`, then the integration tests including dbt.
 - **frontend** runs ESLint, `tsc`, Vitest and the production build.
 - **e2e** runs `docker compose build`, brings up the full stack from `.env.example`, then the smoke test and Playwright.
+- **docs** renders every Mermaid diagram in `README.md` and `docs/` with the Mermaid CLI (`make check-docs`), so a
+  diagram that would not render on GitHub fails the build.
 - **secrets** runs a gitleaks scan of the full history.
 
 No job needs API keys or paid infrastructure.
