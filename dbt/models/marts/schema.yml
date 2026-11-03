@@ -1,0 +1,34 @@
+version: 2
+models:
+  - name: fct_hourly_volume
+    description: Hourly transaction volume, USD value, alerts and late events per tenant.
+    columns:
+      - name: transactions
+        tests: [not_null]
+    tests:
+      - dbt_utils_free_unique_combination:
+          columns: [tenant_id, hour]
+  - name: fct_daily_summary
+    description: Daily operating summary per tenant.
+  - name: fct_fraud_rate_daily
+    description: Simulated fraud rate vs. alert rate and precision per day (evaluation only).
+    columns:
+      - name: alert_precision
+        description: Null when no alerts were raised that day.
+  - name: fct_risk_by_category
+    description: Risk profile by merchant category.
+    tests:
+      - dbt_utils_free_unique_combination:
+          columns: [tenant_id, merchant_category]
+  - name: fct_risk_distribution
+    description: Risk-score histogram in 10-point bands (all bands present).
+  - name: dim_customer_behavior
+    description: Per-customer behavioural statistics.
+    tests:
+      - dbt_utils_free_unique_combination:
+          columns: [tenant_id, customer_id]
+  - name: dq_completeness
+    description: Completeness/integrity pass rates per tenant.
+    columns:
+      - name: pass_rate
+        tests: [not_null]
